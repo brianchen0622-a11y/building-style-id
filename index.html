@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>建築風格辨識 · 幾何與結構科普</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <main class="app">
@@ -14,19 +14,34 @@
     </header>
 
     <section class="upload-section">
-      <label class="upload-box" for="file-input" id="upload-box">
-        <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
+      <div class="upload-box" id="upload-box">
         <div class="upload-placeholder" id="upload-placeholder">
           <span class="upload-icon">📷</span>
-          <span>點擊拍照或選擇照片</span>
+          <span>用下方按鈕拍照或選擇照片</span>
         </div>
         <div id="preview-frame" class="preview-frame" hidden>
           <img id="preview-image" class="preview-image" alt="預覽圖片" />
+          <button type="button" id="retake-btn" class="change-photo-hint">點擊更換照片</button>
         </div>
-        <span id="change-photo-hint" class="change-photo-hint" hidden>點擊更換照片</span>
-      </label>
+      </div>
+
+      <div class="upload-actions">
+        <button type="button" id="camera-btn" class="action-btn primary">📷 拍照</button>
+        <button type="button" id="gallery-btn" class="action-btn secondary">從相簿選擇</button>
+      </div>
+      <input type="file" id="file-input" accept="image/*" hidden />
+
       <button id="analyze-btn" disabled>開始辨識</button>
     </section>
+
+    <div id="camera-overlay" class="camera-overlay" hidden>
+      <video id="camera-video" class="camera-video" autoplay playsinline muted></video>
+      <button type="button" id="camera-close-btn" class="camera-close-btn">取消</button>
+      <div class="camera-controls">
+        <button type="button" id="camera-shutter-btn" class="camera-shutter" aria-label="拍照"></button>
+      </div>
+    </div>
+    <canvas id="camera-canvas" hidden></canvas>
 
     <section class="status-section" id="status-section" hidden>
       <div class="spinner"></div>
@@ -60,6 +75,6 @@
     </footer>
   </main>
 
-  <script type="module" src="app.js?v=9"></script>
+  <script type="module" src="app.js?v=10"></script>
 </body>
 </html>

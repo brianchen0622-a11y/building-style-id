@@ -18,8 +18,15 @@ const fileInput = document.getElementById("file-input");
 const uploadPlaceholder = document.getElementById("upload-placeholder");
 const previewFrame = document.getElementById("preview-frame");
 const previewImage = document.getElementById("preview-image");
-const changePhotoHint = document.getElementById("change-photo-hint");
+const retakeBtn = document.getElementById("retake-btn");
 const analyzeBtn = document.getElementById("analyze-btn");
+const cameraBtn = document.getElementById("camera-btn");
+const galleryBtn = document.getElementById("gallery-btn");
+const cameraOverlay = document.getElementById("camera-overlay");
+const cameraVideo = document.getElementById("camera-video");
+const cameraCloseBtn = document.getElementById("camera-close-btn");
+const cameraShutterBtn = document.getElementById("camera-shutter-btn");
+const cameraCanvas = document.getElementById("camera-canvas");
 const statusSection = document.getElementById("status-section");
 const statusText = document.getElementById("status-text");
 const resultsSection = document.getElementById("results-section");
@@ -37,6 +44,7 @@ let candidateLabels = [];
 let classifierPromise = null;
 let currentImageUrl = null;
 let inferenceImageUrl = null;
+let cameraStream = null;
 
 // Wikipedia's public REST API is free, requires no key, and is CORS-enabled
 // for browser fetches. We look up a thumbnail by page title instead of
@@ -136,22 +144,83 @@ function getClassifier() {
   return classifierPromise;
 }
 
-fileInput.addEventListener("change", () => {
-  const file = fileInput.files && fileInput.files[0];
-  if (!file) return;
+function useImage(url) {
   if (currentImageUrl) URL.revokeObjectURL(currentImageUrl);
   if (inferenceImageUrl) {
     URL.revokeObjectURL(inferenceImageUrl);
     inferenceImageUrl = null;
   }
-  currentImageUrl = URL.createObjectURL(file);
+  currentImageUrl = url;
   previewImage.src = currentImageUrl;
   previewFrame.hidden = false;
-  changePhotoHint.hidden = false;
   uploadPlaceholder.hidden = true;
   analyzeBtn.disabled = false;
   resultsSection.hidden = true;
   detailCard.hidden = true;
+}
+
+fileInput.addEventListener("change", () => {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+  useImage(URL.createObjectURL(file));
+});
+
+retakeBtn.addEventListener("click", () => {
+  previewFrame.hidden = true;
+  uploadPlaceholder.hidden = false;
+  analyzeBtn.disabled = true;
+  resultsSection.hidden = true;
+  detailCard.hidden = true;
+});
+
+galleryBtn.addEventListener("click", () => fileInput.click());
+
+// In-page camera capture so the shutter is one tap, with no OS picker
+// sheet in between (iOS Safari always shows that sheet for <input
+// capture>, so a real getUserMedia preview is the only way around it).
+async function openCamera() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false,
+    });
+  } catch (err) {
+    console.error("camera access failed:", err);
+    setStatus(`無法開啟相機：${err.message || err}，請改用「從相簿選擇」`);
+    return;
+  }
+  cameraVideo.srcObject = cameraStream;
+  cameraOverlay.hidden = false;
+}
+
+function closeCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((track) => track.stop());
+    cameraStream = null;
+  }
+  cameraVideo.srcObject = null;
+  cameraOverlay.hidden = true;
+}
+
+cameraBtn.addEventListener("click", openCamera);
+cameraCloseBtn.addEventListener("click", closeCamera);
+
+cameraShutterBtn.addEventListener("click", () => {
+  const w = cameraVideo.videoWidth;
+  const h = cameraVideo.videoHeight;
+  if (!w || !h) return;
+  cameraCanvas.width = w;
+  cameraCanvas.height = h;
+  cameraCanvas.getContext("2d").drawImage(cameraVideo, 0, 0, w, h);
+  cameraCanvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      closeCamera();
+      useImage(URL.createObjectURL(blob));
+    },
+    "image/jpeg",
+    0.9,
+  );
 });
 
 analyzeBtn.addEventListener("click", async () => {
