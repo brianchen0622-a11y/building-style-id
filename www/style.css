@@ -1,0 +1,345 @@
+:root {
+  --bg: #f4f1ea;
+  --ink: #2a2521;
+  --accent: #b5651d;
+  --card: #ffffff;
+  --line: #ddd5c7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Defensive override: without this, any class rule that sets `display`
+   on a hideable element (e.g. `.status-section { display: flex }`) wins
+   the cascade over the UA's `[hidden] { display: none }` at equal
+   specificity, silently breaking `el.hidden = true` in JS. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.app-header h1 {
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: #6b6258;
+  margin-top: 0;
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.upload-box {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 8px;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 12px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.action-btn.primary {
+  border: none;
+  background: var(--accent);
+  color: white;
+}
+
+.action-btn.secondary {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #8a8074;
+}
+
+.upload-placeholder[hidden] {
+  display: none;
+}
+
+.upload-icon {
+  font-size: 2.5rem;
+}
+
+.preview-frame {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.preview-frame[hidden] {
+  display: none;
+}
+
+.preview-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.change-photo-hint {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  background: rgba(42, 37, 33, 0.72);
+  color: #fff;
+  font-size: 0.78rem;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.camera-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-video {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.camera-close-btn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.camera-controls {
+  position: absolute;
+  bottom: 28px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.camera-shutter {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+button#analyze-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button#analyze-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  color: #6b6258;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.results-section {
+  margin-top: 32px;
+}
+
+.results-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.results-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.results-list li.active {
+  border-color: var(--accent);
+  background: #fbf3ea;
+}
+
+.results-list .score {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.detail-card h3 {
+  margin-top: 0;
+  margin-bottom: 2px;
+}
+
+.detail-era {
+  margin: 0;
+  color: #9a9186;
+  font-size: 0.85rem;
+}
+
+.example-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.example-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.example-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.example-thumb-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.example-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.example-list .example-location {
+  color: #9a9186;
+  font-size: 0.85rem;
+}
+
+.detail-block {
+  margin-top: 14px;
+}
+
+.detail-block h4 {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+.detail-block p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.app-footer {
+  margin-top: 40px;
+  font-size: 0.8rem;
+  color: #9a9186;
+  text-align: center;
+}

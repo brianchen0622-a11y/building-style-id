@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>建築風格辨識 · 幾何與結構科普</title>
+  <link rel="stylesheet" href="style.css?v=5" />
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <h1>建築風格辨識</h1>
+      <p class="subtitle">拍一張建築照片，看看它屬於哪種風格，順便了解背後的幾何與結構原理</p>
+    </header>
+
+    <section class="upload-section">
+      <div class="upload-box" id="upload-box">
+        <div class="upload-placeholder" id="upload-placeholder">
+          <span class="upload-icon">📷</span>
+          <span>用下方按鈕拍照或選擇照片</span>
+        </div>
+        <div id="preview-frame" class="preview-frame" hidden>
+          <img id="preview-image" class="preview-image" alt="預覽圖片" />
+          <button type="button" id="retake-btn" class="change-photo-hint">點擊更換照片</button>
+        </div>
+      </div>
+
+      <div class="upload-actions">
+        <button type="button" id="camera-btn" class="action-btn primary">📷 拍照</button>
+        <button type="button" id="gallery-btn" class="action-btn secondary">從相簿選擇</button>
+      </div>
+      <input type="file" id="file-input" accept="image/*" hidden />
+
+      <button id="analyze-btn" disabled>開始辨識</button>
+    </section>
+
+    <div id="camera-overlay" class="camera-overlay" hidden>
+      <video id="camera-video" class="camera-video" autoplay playsinline muted></video>
+      <button type="button" id="camera-close-btn" class="camera-close-btn">取消</button>
+      <div class="camera-controls">
+        <button type="button" id="camera-shutter-btn" class="camera-shutter" aria-label="拍照"></button>
+      </div>
+    </div>
+    <canvas id="camera-canvas" hidden></canvas>
+
+    <section class="status-section" id="status-section" hidden>
+      <div class="spinner"></div>
+      <p id="status-text">模型載入中（第一次使用需要下載模型，請稍候）...</p>
+    </section>
+
+    <section class="results-section" id="results-section" hidden>
+      <h2>辨識結果</h2>
+      <ul class="results-list" id="results-list"></ul>
+
+      <div class="detail-card" id="detail-card" hidden>
+        <h3 id="detail-name"></h3>
+        <p class="detail-era" id="detail-era"></p>
+        <div class="detail-block">
+          <h4>幾何特徵</h4>
+          <p id="detail-geometry"></p>
+        </div>
+        <div class="detail-block">
+          <h4>結構原理</h4>
+          <p id="detail-structure"></p>
+        </div>
+        <div class="detail-block">
+          <h4>代表建築</h4>
+          <ul class="example-list" id="detail-examples"></ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <p>辨識完全在你的瀏覽器中本機執行（CLIP 模型），不會上傳照片到任何伺服器，也沒有任何 API 費用。</p>
+    </footer>
+  </main>
+
+  <script type="module" src="app.js?v=10"></script>
+</body>
+</html>

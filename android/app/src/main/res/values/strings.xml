@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">建築風格辨識</string>
+    <string name="title_activity_main">建築風格辨識</string>
+    <string name="package_name">com.brianchen.buildingstyle</string>
+    <string name="custom_url_scheme">com.brianchen.buildingstyle</string>
+</resources>
