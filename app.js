@@ -14,6 +14,14 @@ window.addEventListener("unhandledrejection", (e) => {
   setStatus(`發生錯誤：${e.reason?.message || e.reason}`);
 });
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((err) => {
+      console.error("service worker registration failed:", err);
+    });
+  });
+}
+
 const fileInput = document.getElementById("file-input");
 const uploadPlaceholder = document.getElementById("upload-placeholder");
 const previewFrame = document.getElementById("preview-frame");

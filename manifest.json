@@ -1,0 +1,23 @@
+{
+  "name": "建築風格辨識",
+  "short_name": "建築風格",
+  "description": "拍一張建築照片，看看它屬於哪種風格，順便了解背後的幾何與結構原理",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#b5651d",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
