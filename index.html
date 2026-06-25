@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>建築風格辨識 · 幾何與結構科普</title>
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
 
   <!-- PWA / "Add to Home Screen" support -->
   <link rel="manifest" href="manifest.json" />
@@ -72,6 +72,12 @@
 
     <section class="results-section" id="results-section" hidden>
       <h2 id="results-heading">辨識結果</h2>
+
+      <div class="landmark-callout" id="landmark-callout" hidden>
+        <span class="landmark-icon">📍</span>
+        <p>看起來像 <strong id="landmark-name"></strong><span id="landmark-confidence"></span></p>
+      </div>
+
       <ul class="results-list" id="results-list"></ul>
 
       <div class="detail-card" id="detail-card" hidden>
@@ -92,33 +98,11 @@
       </div>
     </section>
 
-    <section class="results-section" id="gemini-results-section" hidden>
-      <h2>Gemini 辨識結果</h2>
-      <ul class="results-list" id="gemini-results-list"></ul>
-
-      <div class="detail-card" id="gemini-detail-card" hidden>
-        <h3 id="gemini-detail-name"></h3>
-        <p class="detail-era" id="gemini-detail-era"></p>
-        <div class="detail-block">
-          <h4>幾何特徵</h4>
-          <p id="gemini-detail-geometry"></p>
-        </div>
-        <div class="detail-block">
-          <h4>結構原理</h4>
-          <p id="gemini-detail-structure"></p>
-        </div>
-        <div class="detail-block">
-          <h4>代表建築</h4>
-          <ul class="example-list" id="gemini-detail-examples"></ul>
-        </div>
-      </div>
-    </section>
-
     <footer class="app-footer">
       <p>本機 CLIP 模式完全在你的瀏覽器中執行，不會上傳照片到任何伺服器，也沒有 API 費用；若選擇 Gemini，照片會以你自己的 API Key 送往 Google 進行辨識。</p>
     </footer>
   </main>
 
-  <script type="module" src="app.js?v=11"></script>
+  <script type="module" src="app.js?v=12"></script>
 </body>
 </html>

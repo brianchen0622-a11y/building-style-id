@@ -51,14 +51,9 @@ const engineRadios = document.querySelectorAll('input[name="engine"]');
 const geminiKeySection = document.getElementById("gemini-key-section");
 const geminiKeyInput = document.getElementById("gemini-key-input");
 const geminiKeySaveBtn = document.getElementById("gemini-key-save-btn");
-const geminiResultsSection = document.getElementById("gemini-results-section");
-const geminiResultsList = document.getElementById("gemini-results-list");
-const geminiDetailCard = document.getElementById("gemini-detail-card");
-const geminiDetailName = document.getElementById("gemini-detail-name");
-const geminiDetailEra = document.getElementById("gemini-detail-era");
-const geminiDetailGeometry = document.getElementById("gemini-detail-geometry");
-const geminiDetailStructure = document.getElementById("gemini-detail-structure");
-const geminiDetailExamples = document.getElementById("gemini-detail-examples");
+const landmarkCallout = document.getElementById("landmark-callout");
+const landmarkName = document.getElementById("landmark-name");
+const landmarkConfidence = document.getElementById("landmark-confidence");
 
 const GEMINI_KEY_STORAGE = "gemini_api_key";
 const ENGINE_STORAGE = "engine_choice";
@@ -227,6 +222,7 @@ function useImage(url) {
   analyzeBtn.disabled = false;
   resultsSection.hidden = true;
   detailCard.hidden = true;
+  landmarkCallout.hidden = true;
 }
 
 fileInput.addEventListener("change", () => {
@@ -241,6 +237,7 @@ retakeBtn.addEventListener("click", () => {
   analyzeBtn.disabled = true;
   resultsSection.hidden = true;
   detailCard.hidden = true;
+  landmarkCallout.hidden = true;
 });
 
 galleryBtn.addEventListener("click", () => fileInput.click());
@@ -293,9 +290,6 @@ cameraShutterBtn.addEventListener("click", () => {
   );
 });
 
-// Both the local-CLIP and Gemini result panes show the same shape of data
-// (ranked {label, score} list + a detail card), so one renderer factory
-// drives both DOM subtrees instead of duplicating this logic twice.
 function createResultsRenderer(refs) {
   function showDetail(style) {
     if (!style) {
@@ -376,7 +370,7 @@ function createResultsRenderer(refs) {
   return { render, showDetail };
 }
 
-const clipRenderer = createResultsRenderer({
+const resultsRenderer = createResultsRenderer({
   resultsSection,
   resultsList,
   detailCard,
@@ -387,16 +381,37 @@ const clipRenderer = createResultsRenderer({
   detailExamples,
 });
 
-const geminiRenderer = createResultsRenderer({
-  resultsSection: geminiResultsSection,
-  resultsList: geminiResultsList,
-  detailCard: geminiDetailCard,
-  detailName: geminiDetailName,
-  detailEra: geminiDetailEra,
-  detailGeometry: geminiDetailGeometry,
-  detailStructure: geminiDetailStructure,
-  detailExamples: geminiDetailExamples,
-});
+// CLIP only ever scores the fixed style label set, so when both engines run
+// we average per-label scores; a label only one engine returned just keeps
+// that engine's score instead of being penalized for the other's silence.
+function mergeScores(clipOutput, geminiOutput) {
+  const clipMap = new Map((clipOutput || []).map((item) => [item.label, item.score]));
+  const geminiMap = new Map((geminiOutput || []).map((item) => [item.label, item.score]));
+  const labels = new Set([...clipMap.keys(), ...geminiMap.keys()]);
+
+  const merged = [...labels].map((label) => {
+    const clipScore = clipMap.get(label);
+    const geminiScore = geminiMap.get(label);
+    const score = clipScore != null && geminiScore != null
+      ? (clipScore + geminiScore) / 2
+      : (clipScore ?? geminiScore);
+    return { label, score };
+  });
+
+  merged.sort((a, b) => b.score - a.score);
+  return merged;
+}
+
+function showLandmark(landmark) {
+  if (!landmark || !landmark.name) {
+    landmarkCallout.hidden = true;
+    return;
+  }
+  landmarkName.textContent = landmark.name;
+  landmarkConfidence.textContent =
+    typeof landmark.confidence === "number" ? `（信心 ${(landmark.confidence * 100).toFixed(0)}%）` : "";
+  landmarkCallout.hidden = false;
+}
 
 function blobUrlToBase64(url) {
   return fetch(url)
@@ -412,15 +427,18 @@ function blobUrlToBase64(url) {
     );
 }
 
-// Ask Gemini to score every candidate label itself, rather than just name
-// the top guess, so the result list can render the same ranked-list UI as
-// the local CLIP classifier.
+// Ask Gemini to score every candidate label itself (rather than just name
+// the top guess) so the result list can render the same ranked-list UI as
+// the local CLIP classifier, and to separately call out a specific famous
+// building if it recognizes one (CLIP's fixed style labels can't do that).
 async function classifyWithGemini(imageUrl, apiKey) {
   const base64 = await blobUrlToBase64(imageUrl);
   const prompt =
-    "你是建築風格分類器。請從以下風格清單中，針對每一個風格給一個 0 到 1 的信心分數，評估這張建築物照片符合該風格的程度：\n" +
+    "你是建築辨識助手，請完成兩項任務：\n" +
+    "1. 從以下風格清單中，針對每一個風格給一個 0 到 1 的信心分數，評估這張建築物照片符合該風格的程度：\n" +
     candidateLabels.join("、") +
-    "\n請只回傳 JSON 陣列，格式為 [{\"label\":\"風格名稱\",\"score\":0.0}, ...]，依分數由高到低排序，label 必須完全等於清單中的字串，不要加任何說明文字。";
+    "\n2. 判斷這張照片是否為你能辨識出的具體知名建築（例如某座地標、某棟著名大樓）。如果可以，給出建築名稱與 0 到 1 的信心分數；如果無法判斷出具體建築，landmark 請設為 null。\n" +
+    "請只回傳 JSON 物件，格式為 {\"styles\":[{\"label\":\"風格名稱\",\"score\":0.0}, ...],\"landmark\":{\"name\":\"建築名稱\",\"confidence\":0.0}}，styles 依分數由高到低排序，label 必須完全等於清單中的字串，不要加任何說明文字。";
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
@@ -455,12 +473,23 @@ async function classifyWithGemini(imageUrl, apiKey) {
   }
 
   const validLabels = new Set(candidateLabels);
-  const output = parsed
-    .filter((item) => item && validLabels.has(item.label) && typeof item.score === "number")
-    .sort((a, b) => b.score - a.score);
+  const styles = Array.isArray(parsed.styles)
+    ? parsed.styles
+        .filter((item) => item && validLabels.has(item.label) && typeof item.score === "number")
+        .sort((a, b) => b.score - a.score)
+    : [];
 
-  if (output.length === 0) throw new Error("Gemini 回傳結果無法對應已知風格");
-  return output;
+  if (styles.length === 0) throw new Error("Gemini 回傳結果無法對應已知風格");
+
+  let landmark = null;
+  if (parsed.landmark && typeof parsed.landmark.name === "string" && parsed.landmark.name.trim()) {
+    landmark = {
+      name: parsed.landmark.name.trim(),
+      confidence: typeof parsed.landmark.confidence === "number" ? parsed.landmark.confidence : null,
+    };
+  }
+
+  return { styles, landmark };
 }
 
 async function runClip() {
@@ -478,7 +507,7 @@ async function runClip() {
   console.timeEnd("clip-inference");
   console.log("classifier output:", output);
 
-  clipRenderer.render(output);
+  return output;
 }
 
 async function runGemini() {
@@ -487,8 +516,7 @@ async function runGemini() {
     throw new Error("請先在上方輸入並儲存 Gemini API Key");
   }
   setStatus("正在使用 Gemini 分析建築風格...");
-  const output = await classifyWithGemini(currentImageUrl, apiKey);
-  geminiRenderer.render(output);
+  return classifyWithGemini(currentImageUrl, apiKey);
 }
 
 analyzeBtn.addEventListener("click", async () => {
@@ -496,10 +524,8 @@ analyzeBtn.addEventListener("click", async () => {
   const engine = getEngineChoice();
   analyzeBtn.disabled = true;
   resultsSection.hidden = true;
-  geminiResultsSection.hidden = true;
   detailCard.hidden = true;
-  geminiDetailCard.hidden = true;
-  resultsHeading.textContent = engine === "both" ? "本機 CLIP 辨識結果" : "辨識結果";
+  landmarkCallout.hidden = true;
 
   let slowHintTimer = null;
   if (engine !== "gemini") {
@@ -509,26 +535,45 @@ analyzeBtn.addEventListener("click", async () => {
   }
 
   const errors = [];
+  let clipOutput = null;
+  let geminiOutput = null;
+  let landmark = null;
+
   try {
     if (engine === "clip" || engine === "both") {
-      await runClip().catch((err) => {
+      try {
+        clipOutput = await runClip();
+      } catch (err) {
         console.error(err);
         errors.push(err.message || String(err));
-      });
+      }
     }
     if (engine === "gemini" || engine === "both") {
-      await runGemini().catch((err) => {
+      try {
+        const result = await runGemini();
+        geminiOutput = result.styles;
+        landmark = result.landmark;
+      } catch (err) {
         console.error(err);
         errors.push(err.message || String(err));
-      });
+      }
     }
   } finally {
     if (slowHintTimer) clearTimeout(slowHintTimer);
     analyzeBtn.disabled = false;
   }
 
+  const usedBoth = engine === "both" && clipOutput && geminiOutput;
+  const merged = usedBoth ? mergeScores(clipOutput, geminiOutput) : (clipOutput || geminiOutput);
+
+  if (merged) {
+    resultsHeading.textContent = usedBoth ? "辨識結果（CLIP + Gemini 平均）" : "辨識結果";
+    resultsRenderer.render(merged);
+    showLandmark(landmark);
+  }
+
   if (errors.length > 0) {
-    setStatus(`辨識失敗：${errors.join("；")}`);
+    setStatus(merged ? `部分辨識失敗：${errors.join("；")}` : `辨識失敗：${errors.join("；")}`);
   } else {
     statusSection.hidden = true;
   }

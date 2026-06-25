@@ -294,6 +294,26 @@ button#analyze-btn:disabled {
   margin-top: 32px;
 }
 
+.landmark-callout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #fbf3ea;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.landmark-callout p {
+  margin: 0;
+}
+
+.landmark-callout #landmark-confidence {
+  color: #6b6258;
+  font-size: 0.85rem;
+}
+
 .results-list {
   list-style: none;
   padding: 0;
