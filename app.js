@@ -437,8 +437,38 @@ async function classifyWithGemini(imageUrl, apiKey) {
     "你是建築辨識助手，請完成兩項任務：\n" +
     "1. 從以下風格清單中，針對每一個風格給一個 0 到 1 的信心分數，評估這張建築物照片符合該風格的程度：\n" +
     candidateLabels.join("、") +
-    "\n2. 判斷這張照片是否為你能辨識出的具體知名建築（例如某座地標、某棟著名大樓）。如果可以，給出建築名稱與 0 到 1 的信心分數；如果無法判斷出具體建築，landmark 請設為 null。\n" +
-    "請只回傳 JSON 物件，格式為 {\"styles\":[{\"label\":\"風格名稱\",\"score\":0.0}, ...],\"landmark\":{\"name\":\"建築名稱\",\"confidence\":0.0}}，styles 依分數由高到低排序，label 必須完全等於清單中的字串，不要加任何說明文字。";
+    "\n2. 判斷這張照片是否為你能辨識出的具體知名建築（例如某座地標、某棟著名大樓）。如果可以，給出建築名稱與 0 到 1 的信心分數；如果無法判斷出具體建築，landmark 請省略或設為 null。\n" +
+    "label 必須完全等於清單中的字串，不要加任何說明文字。";
+
+  // Natural-language formatting instructions alone don't reliably keep the
+  // same JSON shape across calls (Gemini occasionally wraps/unwraps the
+  // "styles" array differently for the same prompt+image). A responseSchema
+  // makes the API itself enforce the structure instead of just asking nicely.
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      styles: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            label: { type: "STRING" },
+            score: { type: "NUMBER" },
+          },
+          required: ["label", "score"],
+        },
+      },
+      landmark: {
+        type: "OBJECT",
+        nullable: true,
+        properties: {
+          name: { type: "STRING" },
+          confidence: { type: "NUMBER" },
+        },
+      },
+    },
+    required: ["styles"],
+  };
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
@@ -451,7 +481,7 @@ async function classifyWithGemini(imageUrl, apiKey) {
             parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64 } }],
           },
         ],
-        generationConfig: { responseMimeType: "application/json" },
+        generationConfig: { responseMimeType: "application/json", responseSchema },
       }),
     },
   );
