@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "建築風格辨識",
+    "slug": "building-style-id",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.brianchen.buildingstyle",
+      "infoPlist": {
+        "NSCameraUsageDescription": "用於拍攝建築照片進行風格辨識"
+      }
+    },
+    "android": {
+      "package": "com.brianchen.buildingstyle",
+      "permissions": ["android.permission.CAMERA"],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-camera"]
+  }
+}
