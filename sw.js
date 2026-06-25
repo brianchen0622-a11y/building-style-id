@@ -1,11 +1,11 @@
 // Caches the app shell only; model downloads (CDN/HuggingFace) stay
 // network-only since transformers.js manages its own model cache.
-const CACHE = "building-style-shell-v1";
+const CACHE = "building-style-shell-v2";
 const SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=5",
-  "./app.js?v=10",
+  "./style.css?v=6",
+  "./app.js?v=11",
   "./manifest.json",
   "./data/styles.json",
   "./icons/icon-192.png",

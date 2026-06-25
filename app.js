@@ -38,6 +38,7 @@ const cameraCanvas = document.getElementById("camera-canvas");
 const statusSection = document.getElementById("status-section");
 const statusText = document.getElementById("status-text");
 const resultsSection = document.getElementById("results-section");
+const resultsHeading = document.getElementById("results-heading");
 const resultsList = document.getElementById("results-list");
 const detailCard = document.getElementById("detail-card");
 const detailName = document.getElementById("detail-name");
@@ -45,6 +46,67 @@ const detailEra = document.getElementById("detail-era");
 const detailGeometry = document.getElementById("detail-geometry");
 const detailStructure = document.getElementById("detail-structure");
 const detailExamples = document.getElementById("detail-examples");
+
+const engineRadios = document.querySelectorAll('input[name="engine"]');
+const geminiKeySection = document.getElementById("gemini-key-section");
+const geminiKeyInput = document.getElementById("gemini-key-input");
+const geminiKeySaveBtn = document.getElementById("gemini-key-save-btn");
+const geminiResultsSection = document.getElementById("gemini-results-section");
+const geminiResultsList = document.getElementById("gemini-results-list");
+const geminiDetailCard = document.getElementById("gemini-detail-card");
+const geminiDetailName = document.getElementById("gemini-detail-name");
+const geminiDetailEra = document.getElementById("gemini-detail-era");
+const geminiDetailGeometry = document.getElementById("gemini-detail-geometry");
+const geminiDetailStructure = document.getElementById("gemini-detail-structure");
+const geminiDetailExamples = document.getElementById("gemini-detail-examples");
+
+const GEMINI_KEY_STORAGE = "gemini_api_key";
+const ENGINE_STORAGE = "engine_choice";
+
+function getGeminiKey() {
+  return localStorage.getItem(GEMINI_KEY_STORAGE) || "";
+}
+
+function setGeminiKey(key) {
+  if (key) localStorage.setItem(GEMINI_KEY_STORAGE, key);
+  else localStorage.removeItem(GEMINI_KEY_STORAGE);
+}
+
+function getEngineChoice() {
+  return localStorage.getItem(ENGINE_STORAGE) || "clip";
+}
+
+function setEngineChoice(value) {
+  localStorage.setItem(ENGINE_STORAGE, value);
+}
+
+function syncEngineUI() {
+  const choice = getEngineChoice();
+  engineRadios.forEach((radio) => {
+    radio.checked = radio.value === choice;
+  });
+  geminiKeySection.hidden = choice === "clip";
+}
+
+engineRadios.forEach((radio) => {
+  radio.addEventListener("change", () => {
+    if (radio.checked) {
+      setEngineChoice(radio.value);
+      syncEngineUI();
+    }
+  });
+});
+
+geminiKeyInput.value = getGeminiKey();
+geminiKeySaveBtn.addEventListener("click", () => {
+  setGeminiKey(geminiKeyInput.value.trim());
+  geminiKeySaveBtn.textContent = "已儲存";
+  setTimeout(() => {
+    geminiKeySaveBtn.textContent = "儲存";
+  }, 1200);
+});
+
+syncEngineUI();
 
 let stylesById = new Map();
 let labelToStyle = new Map();
@@ -231,120 +293,246 @@ cameraShutterBtn.addEventListener("click", () => {
   );
 });
 
+// Both the local-CLIP and Gemini result panes show the same shape of data
+// (ranked {label, score} list + a detail card), so one renderer factory
+// drives both DOM subtrees instead of duplicating this logic twice.
+function createResultsRenderer(refs) {
+  function showDetail(style) {
+    if (!style) {
+      refs.detailCard.hidden = true;
+      return;
+    }
+    refs.detailName.textContent = style.name;
+    refs.detailEra.textContent = style.era || "";
+    refs.detailGeometry.textContent = style.geometry;
+    refs.detailStructure.textContent = style.structure;
+
+    refs.detailExamples.innerHTML = "";
+    (style.examples || []).forEach((ex) => {
+      const li = document.createElement("li");
+
+      const thumbPlaceholder = document.createElement("div");
+      thumbPlaceholder.className = "example-thumb-placeholder";
+      li.appendChild(thumbPlaceholder);
+
+      const textWrap = document.createElement("div");
+      textWrap.className = "example-text";
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = ex.name;
+      const locSpan = document.createElement("span");
+      locSpan.className = "example-location";
+      locSpan.textContent = ex.location;
+      textWrap.appendChild(nameSpan);
+      textWrap.appendChild(locSpan);
+      li.appendChild(textWrap);
+
+      refs.detailExamples.appendChild(li);
+
+      if (ex.wiki) {
+        fetchWikiThumbnail(ex.wiki).then((url) => {
+          if (!url) return;
+          const img = document.createElement("img");
+          img.className = "example-thumb";
+          img.src = url;
+          img.alt = ex.name;
+          img.loading = "lazy";
+          thumbPlaceholder.replaceWith(img);
+        });
+      }
+    });
+
+    refs.detailCard.hidden = false;
+  }
+
+  function render(output) {
+    const top = output.slice(0, 5);
+    refs.resultsList.innerHTML = "";
+
+    top.forEach((item, index) => {
+      const style = labelToStyle.get(item.label);
+      const li = document.createElement("li");
+      li.className = index === 0 ? "active" : "";
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = style ? style.name : item.label;
+      const scoreSpan = document.createElement("span");
+      scoreSpan.className = "score";
+      scoreSpan.textContent = `${(item.score * 100).toFixed(1)}%`;
+      li.appendChild(nameSpan);
+      li.appendChild(scoreSpan);
+      li.addEventListener("click", () => {
+        refs.resultsList.querySelectorAll("li").forEach((el) => el.classList.remove("active"));
+        li.classList.add("active");
+        showDetail(style);
+      });
+      refs.resultsList.appendChild(li);
+    });
+
+    refs.resultsSection.hidden = false;
+    if (top.length > 0) {
+      showDetail(labelToStyle.get(top[0].label));
+    }
+  }
+
+  return { render, showDetail };
+}
+
+const clipRenderer = createResultsRenderer({
+  resultsSection,
+  resultsList,
+  detailCard,
+  detailName,
+  detailEra,
+  detailGeometry,
+  detailStructure,
+  detailExamples,
+});
+
+const geminiRenderer = createResultsRenderer({
+  resultsSection: geminiResultsSection,
+  resultsList: geminiResultsList,
+  detailCard: geminiDetailCard,
+  detailName: geminiDetailName,
+  detailEra: geminiDetailEra,
+  detailGeometry: geminiDetailGeometry,
+  detailStructure: geminiDetailStructure,
+  detailExamples: geminiDetailExamples,
+});
+
+function blobUrlToBase64(url) {
+  return fetch(url)
+    .then((res) => res.blob())
+    .then(
+      (blob) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = () => reject(new Error("圖片轉換失敗"));
+          reader.readAsDataURL(blob);
+        }),
+    );
+}
+
+// Ask Gemini to score every candidate label itself, rather than just name
+// the top guess, so the result list can render the same ranked-list UI as
+// the local CLIP classifier.
+async function classifyWithGemini(imageUrl, apiKey) {
+  const base64 = await blobUrlToBase64(imageUrl);
+  const prompt =
+    "你是建築風格分類器。請從以下風格清單中，針對每一個風格給一個 0 到 1 的信心分數，評估這張建築物照片符合該風格的程度：\n" +
+    candidateLabels.join("、") +
+    "\n請只回傳 JSON 陣列，格式為 [{\"label\":\"風格名稱\",\"score\":0.0}, ...]，依分數由高到低排序，label 必須完全等於清單中的字串，不要加任何說明文字。";
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64 } }],
+          },
+        ],
+        generationConfig: { responseMimeType: "application/json" },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`Gemini API 錯誤 (${res.status})：${errBody.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Gemini 沒有回傳結果");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    throw new Error("Gemini 回傳格式無法解析");
+  }
+
+  const validLabels = new Set(candidateLabels);
+  const output = parsed
+    .filter((item) => item && validLabels.has(item.label) && typeof item.score === "number")
+    .sort((a, b) => b.score - a.score);
+
+  if (output.length === 0) throw new Error("Gemini 回傳結果無法對應已知風格");
+  return output;
+}
+
+async function runClip() {
+  setStatus("模型載入中（第一次使用需要下載模型，請稍候）...");
+  const classifier = await getClassifier();
+
+  setStatus("正在縮圖以加速分析...");
+  if (!inferenceImageUrl) {
+    inferenceImageUrl = await resizeImageForInference(currentImageUrl);
+  }
+
+  setStatus("正在使用本機 CLIP 分析建築風格...");
+  console.time("clip-inference");
+  const output = await classifier(inferenceImageUrl, candidateLabels);
+  console.timeEnd("clip-inference");
+  console.log("classifier output:", output);
+
+  clipRenderer.render(output);
+}
+
+async function runGemini() {
+  const apiKey = getGeminiKey();
+  if (!apiKey) {
+    throw new Error("請先在上方輸入並儲存 Gemini API Key");
+  }
+  setStatus("正在使用 Gemini 分析建築風格...");
+  const output = await classifyWithGemini(currentImageUrl, apiKey);
+  geminiRenderer.render(output);
+}
+
 analyzeBtn.addEventListener("click", async () => {
   if (!currentImageUrl) return;
+  const engine = getEngineChoice();
   analyzeBtn.disabled = true;
   resultsSection.hidden = true;
+  geminiResultsSection.hidden = true;
   detailCard.hidden = true;
-  setStatus("模型載入中（第一次使用需要下載模型，請稍候）...");
+  geminiDetailCard.hidden = true;
+  resultsHeading.textContent = engine === "both" ? "本機 CLIP 辨識結果" : "辨識結果";
 
   let slowHintTimer = null;
-  try {
-    const classifier = await getClassifier();
-
-    setStatus("正在縮圖以加速分析...");
-    if (!inferenceImageUrl) {
-      inferenceImageUrl = await resizeImageForInference(currentImageUrl);
-    }
-
-    setStatus("正在分析建築風格...");
+  if (engine !== "gemini") {
     slowHintTimer = setTimeout(() => {
       setStatus("正在分析建築風格...（第一次分析在較舊的裝置上可能需要 30 秒以上，請耐心等候）");
     }, 8000);
+  }
 
-    console.time("clip-inference");
-    console.log("running classifier on", inferenceImageUrl);
-    const output = await classifier(inferenceImageUrl, candidateLabels);
-    console.timeEnd("clip-inference");
-    console.log("classifier output:", output);
-
-    renderResults(output);
-    statusSection.hidden = true;
-  } catch (err) {
-    console.error(err);
-    setStatus(`辨識失敗：${err.message || err}`);
+  const errors = [];
+  try {
+    if (engine === "clip" || engine === "both") {
+      await runClip().catch((err) => {
+        console.error(err);
+        errors.push(err.message || String(err));
+      });
+    }
+    if (engine === "gemini" || engine === "both") {
+      await runGemini().catch((err) => {
+        console.error(err);
+        errors.push(err.message || String(err));
+      });
+    }
   } finally {
     if (slowHintTimer) clearTimeout(slowHintTimer);
     analyzeBtn.disabled = false;
   }
+
+  if (errors.length > 0) {
+    setStatus(`辨識失敗：${errors.join("；")}`);
+  } else {
+    statusSection.hidden = true;
+  }
 });
-
-function renderResults(output) {
-  const top = output.slice(0, 5);
-  resultsList.innerHTML = "";
-
-  top.forEach((item, index) => {
-    const style = labelToStyle.get(item.label);
-    const li = document.createElement("li");
-    li.className = index === 0 ? "active" : "";
-    const nameSpan = document.createElement("span");
-    nameSpan.textContent = style ? style.name : item.label;
-    const scoreSpan = document.createElement("span");
-    scoreSpan.className = "score";
-    scoreSpan.textContent = `${(item.score * 100).toFixed(1)}%`;
-    li.appendChild(nameSpan);
-    li.appendChild(scoreSpan);
-    li.addEventListener("click", () => {
-      resultsList.querySelectorAll("li").forEach((el) => el.classList.remove("active"));
-      li.classList.add("active");
-      showDetail(style);
-    });
-    resultsList.appendChild(li);
-  });
-
-  resultsSection.hidden = false;
-  statusSection.hidden = true;
-  if (top.length > 0) {
-    showDetail(labelToStyle.get(top[0].label));
-  }
-}
-
-function showDetail(style) {
-  if (!style) {
-    detailCard.hidden = true;
-    return;
-  }
-  detailName.textContent = style.name;
-  detailEra.textContent = style.era || "";
-  detailGeometry.textContent = style.geometry;
-  detailStructure.textContent = style.structure;
-
-  detailExamples.innerHTML = "";
-  (style.examples || []).forEach((ex) => {
-    const li = document.createElement("li");
-
-    const thumbPlaceholder = document.createElement("div");
-    thumbPlaceholder.className = "example-thumb-placeholder";
-    li.appendChild(thumbPlaceholder);
-
-    const textWrap = document.createElement("div");
-    textWrap.className = "example-text";
-    const nameSpan = document.createElement("span");
-    nameSpan.textContent = ex.name;
-    const locSpan = document.createElement("span");
-    locSpan.className = "example-location";
-    locSpan.textContent = ex.location;
-    textWrap.appendChild(nameSpan);
-    textWrap.appendChild(locSpan);
-    li.appendChild(textWrap);
-
-    detailExamples.appendChild(li);
-
-    if (ex.wiki) {
-      fetchWikiThumbnail(ex.wiki).then((url) => {
-        if (!url) return;
-        const img = document.createElement("img");
-        img.className = "example-thumb";
-        img.src = url;
-        img.alt = ex.name;
-        img.loading = "lazy";
-        thumbPlaceholder.replaceWith(img);
-      });
-    }
-  });
-
-  detailCard.hidden = false;
-}
 
 loadStyles().catch((err) => {
   console.error(err);
